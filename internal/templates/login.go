@@ -1,7 +1,8 @@
 package templates
 
 type LoginData struct {
-	Error string
+	Error              string
+	GameLoginRequestID string
 }
 
 var LoginTemplate = parseTemplate(

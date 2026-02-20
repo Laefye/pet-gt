@@ -26,19 +26,22 @@ func main() {
 		panic(err)
 	}
 
-	err = db.AutoMigrate(&repository.User{}, &repository.Session{})
+	err = db.AutoMigrate(&repository.User{}, &repository.Session{}, &repository.GameLoginRequest{})
 	if err != nil {
 		panic(err)
 	}
 
 	userRepo := repository.NewUserRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
+	gameLoginRepo := repository.NewGameLoginRequestRepository(db)
 
 	authService := services.NewAuthService(userRepo, sessionRepo)
+	gameAPIService := services.NewGameAPIService(gameLoginRepo)
 
 	signupController := controllers.NewSignupController(authService)
 	loginController := controllers.NewLoginController(authService)
 	feedController := controllers.NewFeedController()
+	gameController := controllers.NewGameController(gameAPIService)
 
 	mux := http.NewServeMux()
 	mux.Handle("/public/", http.StripPrefix("/public", http.FileServer(http.Dir("web/public"))))
@@ -68,6 +71,28 @@ func main() {
 			return
 		}
 		feedController.GetFeed(user, w, r)
+	})
+	mux.HandleFunc("POST /api/game", func(w http.ResponseWriter, r *http.Request) {
+		gameController.CreateGameLoginRequest(w, r)
+	})
+	mux.HandleFunc("GET /api/game", func(w http.ResponseWriter, r *http.Request) {
+		gameController.GetGameLoginState(w, r)
+	})
+	mux.HandleFunc("GET /game", func(w http.ResponseWriter, r *http.Request) {
+		user, err := loginController.Authenticate(r)
+		if err != nil {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		gameController.GetGameLoginPage(user, w, r)
+	})
+	mux.HandleFunc("POST /game", func(w http.ResponseWriter, r *http.Request) {
+		user, err := loginController.Authenticate(r)
+		if err != nil {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		gameController.PostGameLogin(user, w, r)
 	})
 
 	http.ListenAndServe("localhost:8080", mux)

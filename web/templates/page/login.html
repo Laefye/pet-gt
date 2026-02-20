@@ -6,6 +6,9 @@
 <div class="container-sm">
     <h1>Login</h1>
     <form action="/login" method="POST" class="login-form">
+        {{ if .GameLoginRequestID }}
+            <input type="hidden" name="game_login_request_id" value="{{ .GameLoginRequestID }}">
+        {{ end }}
         <div>
             <label for="username">Username:</label>
             <input type="text" id="username" name="username" required autocomplete="username">
@@ -16,6 +19,9 @@
         </div>
         <button type="submit">Login</button>
         <p>Don't have an account? <a href="/signup">Signup here</a></p>
+        {{ if .Error }}
+            <p style="color: red;">{{ .Error }}</p>
+        {{ end }}
     </form>
 </div>
 {{ end }}

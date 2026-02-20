@@ -1,0 +1,20 @@
+{{ define "title" }}Game Login Page{{ end }}
+{{ define "head" }}
+<link rel="stylesheet" href="/public/css/login.css">
+<link rel="stylesheet" href="/public/css/game.css">
+{{ end }}
+{{ define "content" }}
+<div class="container-sm">
+    <h1>Game Login</h1>
+    <form action="/game" method="POST" class="login-form">
+        {{ if .Error }}
+            <p style="color: red;">{{ .Error }}</p>
+        {{ else }}
+            <input type="hidden" name="game_login_request_id" value="{{ .GameLoginRequest.ID }}">
+            <p>You're logged in as <span class="tag-username">{{ .User.Username }}</span></p>
+            <p>Please click the button below to log in to the game.</p>
+            <button type="submit">Login to Game</button>
+        {{ end }}
+    </form>
+</div>
+{{ end }}
