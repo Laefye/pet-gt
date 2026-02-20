@@ -1,0 +1,21 @@
+{{ define "title" }}Login Page{{ end }}
+{{ define "head" }}
+<link rel="stylesheet" href="/public/css/login.css">
+{{ end }}
+{{ define "content" }}
+<div class="container-sm">
+    <h1>Login</h1>
+    <form action="/login" method="POST" class="login-form">
+        <div>
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required autocomplete="username">
+        </div>
+        <div>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required autocomplete="current-password">
+        </div>
+        <button type="submit">Login</button>
+        <p>Don't have an account? <a href="/signup">Signup here</a></p>
+    </form>
+</div>
+{{ end }}

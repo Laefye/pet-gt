@@ -1,0 +1,23 @@
+nav {
+    background-color: #272727;
+    color: white;
+    padding: 1rem;
+}
+
+nav ul {
+    list-style-type: none;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0;
+    display: flex;
+    gap: 20px;
+    
+    li {
+        display: inline;
+
+        a {
+            color: white;
+            text-decoration: none;
+        }
+    }
+}
