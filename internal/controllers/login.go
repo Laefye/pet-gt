@@ -1,8 +1,6 @@
 package controllers
 
 import (
-	"errors"
-	"gt/internal/repository"
 	"gt/internal/services"
 	"gt/internal/templates"
 	"net/http"
@@ -27,10 +25,9 @@ func (c *LoginController) renderTemplate(w http.ResponseWriter, data *templates.
 
 func (c *LoginController) GetLogin(w http.ResponseWriter, r *http.Request) {
 	gameLoginRequestID := r.URL.Query().Get("game_login_request_id")
-	data := templates.LoginData{
+	c.renderTemplate(w, &templates.LoginData{
 		GameLoginRequestID: gameLoginRequestID,
-	}
-	c.renderTemplate(w, &data)
+	})
 }
 
 func (c *LoginController) PostLogin(w http.ResponseWriter, r *http.Request) {
@@ -42,7 +39,10 @@ func (c *LoginController) PostLogin(w http.ResponseWriter, r *http.Request) {
 	password := r.FormValue("password")
 	gameLoginRequestID := r.FormValue("game_login_request_id")
 	if username == "" || password == "" {
-		c.renderTemplate(w, &templates.LoginData{Error: "Username and password are required", GameLoginRequestID: gameLoginRequestID})
+		c.renderTemplate(w, &templates.LoginData{
+			Error:              "Username and password are required",
+			GameLoginRequestID: gameLoginRequestID,
+		})
 		return
 	}
 	session, err := c.authService.Login(r.Context(), services.LoginRequest{
@@ -50,40 +50,25 @@ func (c *LoginController) PostLogin(w http.ResponseWriter, r *http.Request) {
 		Password:  password,
 		UserAgent: r.UserAgent(),
 	})
-	if err == nil {
-		http.SetCookie(w, &http.Cookie{
-			Name:     "session_id",
-			Value:    session.ID,
-			Path:     "/",
-			HttpOnly: true,
-			Expires:  time.Now().Add(24 * time.Hour),
+	if err != nil {
+		c.renderTemplate(w, &templates.LoginData{
+			Error:              "Invalid username or password",
+			GameLoginRequestID: gameLoginRequestID,
 		})
-		if gameLoginRequestID != "" {
-			query := url.Values{}
-			query.Set("id", gameLoginRequestID)
-			http.Redirect(w, r, "/game?"+query.Encode(), http.StatusSeeOther)
-			return
-		}
-		http.Redirect(w, r, "/feed", http.StatusSeeOther)
 		return
 	}
-	c.renderTemplate(w, &templates.LoginData{Error: "Invalid username or password", GameLoginRequestID: gameLoginRequestID})
-}
-
-func (c *LoginController) Authenticate(r *http.Request) (*repository.User, error) {
-	cookie, err := r.Cookie("session_id")
-	if err != nil {
-		if errors.Is(err, http.ErrNoCookie) {
-			return nil, nil
-		}
-		return nil, err
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Value:    session.ID,
+		Path:     "/",
+		HttpOnly: true,
+		Expires:  time.Now().Add(24 * time.Hour),
+	})
+	if gameLoginRequestID != "" {
+		query := url.Values{}
+		query.Set("id", gameLoginRequestID)
+		http.Redirect(w, r, "/game?"+query.Encode(), http.StatusSeeOther)
+		return
 	}
-	session, err := c.authService.Authenticate(r.Context(), cookie.Value)
-	if err != nil {
-		return nil, err
-	}
-	if session == nil {
-		return nil, nil
-	}
-	return session.User, nil
+	http.Redirect(w, r, "/feed", http.StatusSeeOther)
 }

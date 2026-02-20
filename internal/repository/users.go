@@ -9,16 +9,10 @@ import (
 )
 
 type User struct {
-	ID       string `gorm:"primaryKey"`
-	Username string `gorm:"unique;not null"`
-	Password string `gorm:"not null"`
-
+	ID       string    `gorm:"primaryKey"`
+	Username string    `gorm:"unique;not null"`
+	Password string    `gorm:"not null"`
 	Sessions []Session `gorm:"foreignKey:UserID"`
-}
-
-type CreateUserRequest struct {
-	Username string
-	Password string
 }
 
 type UserRepository struct {
@@ -29,11 +23,11 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-func (r *UserRepository) CreateUser(ctx context.Context, req CreateUserRequest) (*User, error) {
+func (r *UserRepository) Create(ctx context.Context, username, password string) (*User, error) {
 	user := &User{
 		ID:       ulid.Make().String(),
-		Username: req.Username,
-		Password: req.Password,
+		Username: username,
+		Password: password,
 	}
 	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
 		return nil, err
@@ -41,9 +35,10 @@ func (r *UserRepository) CreateUser(ctx context.Context, req CreateUserRequest) 
 	return user, nil
 }
 
-func (r *UserRepository) GetUserByUsername(ctx context.Context, username string) (*User, error) {
+func (r *UserRepository) GetByUsername(ctx context.Context, username string) (*User, error) {
 	var user User
-	if err := r.db.WithContext(ctx).Where(&User{Username: username}).First(&user).Error; err != nil {
+	err := r.db.WithContext(ctx).Where("username = ?", username).First(&user).Error
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}

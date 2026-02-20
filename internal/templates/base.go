@@ -7,6 +7,8 @@ var baseTemplates = []string{
 }
 
 func parseTemplate(files ...string) *template.Template {
-	allFiles := append(baseTemplates, files...)
-	return template.Must(template.ParseFiles(allFiles...))
+	all := make([]string, 0, len(baseTemplates)+len(files))
+	all = append(all, baseTemplates...)
+	all = append(all, files...)
+	return template.Must(template.ParseFiles(all...))
 }

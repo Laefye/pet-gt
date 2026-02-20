@@ -1,9 +1,9 @@
 package templates
 
 type FeedData struct {
-	LoginedData
+	AuthenticatedData
 }
 
-var FeedTemplate = parseLoginedTemplate(
+var FeedTemplate = parseAuthenticatedTemplate(
 	"web/templates/page/feed.html",
 )

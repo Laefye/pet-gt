@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"gt/internal/repository"
 
 	"golang.org/x/crypto/bcrypt"
@@ -21,19 +22,6 @@ type SignupRequest struct {
 	Password string
 }
 
-func hashPassword(password string) (string, error) {
-	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return "", err
-	}
-	return string(hashed), nil
-}
-
-func checkPasswordHash(password, hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	return err == nil
-}
-
 type SignupError struct {
 	Message string
 }
@@ -43,29 +31,18 @@ func (e *SignupError) Error() string {
 }
 
 func (s *AuthService) Signup(ctx context.Context, req SignupRequest) (*repository.User, error) {
-	user, err := s.userRepo.GetUserByUsername(ctx, req.Username)
+	existing, err := s.userRepo.GetByUsername(ctx, req.Username)
 	if err != nil {
 		return nil, err
 	}
-	if user != nil {
+	if existing != nil {
 		return nil, &SignupError{Message: "Username already exists"}
 	}
-	hashedPassword, err := hashPassword(req.Password)
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
-	return s.userRepo.CreateUser(ctx, repository.CreateUserRequest{
-		Username: req.Username,
-		Password: hashedPassword,
-	})
-}
-
-type LoginError struct {
-	Message string
-}
-
-func (e *LoginError) Error() string {
-	return e.Message
+	return s.userRepo.Create(ctx, req.Username, string(hashed))
 }
 
 type LoginRequest struct {
@@ -74,26 +51,22 @@ type LoginRequest struct {
 	UserAgent string
 }
 
+var ErrInvalidCredentials = errors.New("invalid username or password")
+
 func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*repository.Session, error) {
-	user, err := s.userRepo.GetUserByUsername(ctx, req.Username)
+	user, err := s.userRepo.GetByUsername(ctx, req.Username)
 	if err != nil {
 		return nil, err
 	}
-	if user == nil || !checkPasswordHash(req.Password, user.Password) {
-		return nil, &LoginError{Message: "Invalid username or password"}
+	if user == nil {
+		return nil, ErrInvalidCredentials
 	}
-
-	session, err := s.sessionRepo.CreateSession(ctx, repository.CreateSessionRequest{
-		UserID:    user.ID,
-		UserAgent: req.UserAgent,
-	})
-	if err != nil {
-		return nil, err
+	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)) != nil {
+		return nil, ErrInvalidCredentials
 	}
-
-	return session, nil
+	return s.sessionRepo.Create(ctx, user.ID, req.UserAgent)
 }
 
 func (s *AuthService) Authenticate(ctx context.Context, sessionID string) (*repository.Session, error) {
-	return s.sessionRepo.GetSessionByID(ctx, sessionID)
+	return s.sessionRepo.GetByID(ctx, sessionID)
 }

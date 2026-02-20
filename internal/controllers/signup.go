@@ -8,11 +8,11 @@ import (
 )
 
 type SignupController struct {
-	userService *services.AuthService
+	authService *services.AuthService
 }
 
-func NewSignupController(userService *services.AuthService) *SignupController {
-	return &SignupController{userService: userService}
+func NewSignupController(authService *services.AuthService) *SignupController {
+	return &SignupController{authService: authService}
 }
 
 func (c *SignupController) renderTemplate(w http.ResponseWriter, data *templates.SignupData) {
@@ -37,18 +37,18 @@ func (c *SignupController) PostSignup(w http.ResponseWriter, r *http.Request) {
 		c.renderTemplate(w, &templates.SignupData{Error: "Username and password are required"})
 		return
 	}
-	_, err := c.userService.Signup(r.Context(), services.SignupRequest{
+	_, err := c.authService.Signup(r.Context(), services.SignupRequest{
 		Username: username,
 		Password: password,
 	})
-	if err == nil {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
+	if err != nil {
+		var signupErr *services.SignupError
+		if errors.As(err, &signupErr) {
+			c.renderTemplate(w, &templates.SignupData{Error: signupErr.Message})
+			return
+		}
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	var signupError *services.SignupError
-	if errors.As(err, &signupError) {
-		c.renderTemplate(w, &templates.SignupData{Error: signupError.Message})
-		return
-	}
-	http.Error(w, "Internal server error", http.StatusInternalServerError)
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }

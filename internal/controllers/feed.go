@@ -1,21 +1,21 @@
 package controllers
 
 import (
-	"gt/internal/repository"
+	"gt/internal/middleware"
 	"gt/internal/templates"
 	"net/http"
 )
 
-type FeedController struct {
-}
+type FeedController struct{}
 
 func NewFeedController() *FeedController {
 	return &FeedController{}
 }
 
-func (c *FeedController) GetFeed(user *repository.User, w http.ResponseWriter, r *http.Request) {
+func (c *FeedController) GetFeed(w http.ResponseWriter, r *http.Request) {
+	user := middleware.UserFromContext(r.Context())
 	data := templates.FeedData{
-		LoginedData: templates.LoginedData{
+		AuthenticatedData: templates.AuthenticatedData{
 			User: user,
 		},
 	}
