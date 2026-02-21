@@ -66,6 +66,9 @@ func main() {
 	noAuth := func(next http.HandlerFunc) http.HandlerFunc {
 		return middleware.NoAuth(authService, "/login", next)
 	}
+	gameLogin := func(next http.HandlerFunc) http.HandlerFunc {
+		return middleware.RequireGameLogin(gameService, next)
+	}
 
 	mux := http.NewServeMux()
 	mux.Handle("/public/", http.StripPrefix("/public", http.FileServer(http.Dir("web/public"))))
@@ -84,6 +87,7 @@ func main() {
 	mux.HandleFunc("POST /api/game/login", gameCtrl.CreateGameLoginRequest)
 	mux.HandleFunc("GET /api/game/login", gameCtrl.GetGameLoginState)
 	mux.HandleFunc("GET /api/game/exchange", gameCtrl.ExchangeGameLoginCode)
+	mux.HandleFunc("GET /api/game/user", gameLogin(gameCtrl.GetUser))
 	mux.HandleFunc("GET /game", optAuth(gameCtrl.GetGameLoginPage))
 	mux.HandleFunc("POST /game", auth(gameCtrl.PostGameLogin))
 	mux.HandleFunc("GET /profile/logout", auth(profileCtrl.Logout))

@@ -57,12 +57,12 @@ type gameLoginState struct {
 type gameUser struct {
 	ID       string `json:"id"`
 	Username string `json:"username"`
+	Email    string `json:"email"`
 }
 
 type gameLogin struct {
-	ID    string   `json:"id"`
-	Token string   `json:"token"`
-	User  gameUser `json:"user"`
+	ID    string `json:"id"`
+	Token string `json:"token"`
 }
 
 func (c *GameController) CreateGameLoginRequest(w http.ResponseWriter, r *http.Request) {
@@ -161,17 +161,13 @@ func (c *GameController) ExchangeGameLoginCode(w http.ResponseWriter, r *http.Re
 		}
 		return
 	}
-	user, err := c.userService.GetUserByID(r.Context(), code.GameLogin.UserID)
-	if err != nil {
-		c.jsonResponse(w, gameErrorResponse{Message: err.Error()}, http.StatusInternalServerError)
-		return
-	}
 	c.jsonResponse(w, gameLogin{
 		ID:    code.GameLogin.ID,
 		Token: code.Token,
-		User: gameUser{
-			ID:       user.ID,
-			Username: user.Username,
-		},
 	}, http.StatusOK)
+}
+
+func (c *GameController) GetUser(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GameLoginFromContext(r.Context()).User
+	c.jsonResponse(w, gameUser{ID: user.ID, Username: user.Username, Email: user.Email}, http.StatusOK)
 }

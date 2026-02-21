@@ -137,3 +137,14 @@ func (s *GameService) Exchange(ctx context.Context, gameRequestId string, token 
 		Token:     loginToken,
 	}, nil
 }
+
+func (s *GameService) AuthenticateGameLogin(ctx context.Context, id string, token string) (*repository.GameLogin, error) {
+	gameLogin, err := s.gameLoginRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if gameLogin == nil || !security.CheckPasswordHash(token, gameLogin.Token) {
+		return nil, ErrGameLoginCodeNotFound
+	}
+	return gameLogin, nil
+}

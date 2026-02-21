@@ -38,3 +38,15 @@ func (r *GameLoginRepository) Create(ctx context.Context, req *CreateGameLoginRe
 	}
 	return gameLogin, nil
 }
+
+func (r *GameLoginRepository) GetByID(ctx context.Context, id string) (*GameLogin, error) {
+	var gameLogin GameLogin
+	err := r.db.WithContext(ctx).Preload("User").Where("id = ?", id).First(&gameLogin).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &gameLogin, nil
+}
