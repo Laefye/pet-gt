@@ -2,6 +2,15 @@
 {{ define "authenticated_content" }}
 <div class="container">
     <h1>Welcome to the Feed</h1>
-    <p>This is where you can see all the latest posts from your friends and the people you follow.</p>
+    <h2>Your Achievements</h2>
+    {{ if .Achievements }}
+        <ul>
+            {{ range .Achievements }}
+                <li>{{ template "achievement" . }}</li>
+            {{ end }}
+        </ul>
+    {{ else }}
+        <p>You haven't unlocked any achievements yet. Start playing games and unlocking achievements to see them here!</p>
+    {{ end }}
 </div>
 {{ end }}

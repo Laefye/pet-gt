@@ -38,7 +38,7 @@ func main() {
 		log.Fatal("failed to connect to database: ", err)
 	}
 
-	if err := db.AutoMigrate(&repository.User{}, &repository.Session{}, &repository.GameLogin{}, &repository.GameLoginRequest{}); err != nil {
+	if err := db.AutoMigrate(&repository.User{}, &repository.Session{}, &repository.GameLogin{}, &repository.GameLoginRequest{}, &repository.Achievement{}); err != nil {
 		log.Fatal("failed to migrate database: ", err)
 	}
 
@@ -46,16 +46,19 @@ func main() {
 	sessionRepo := repository.NewSessionRepository(db)
 	gameLoginRepo := repository.NewGameLoginRepository(db)
 	gameLoginRequestRepo := repository.NewGameLoginRequestRepository(db)
+	achievementRepo := repository.NewAchievementRepository(db)
 
 	authService := services.NewAuthService(userRepo, sessionRepo)
 	userService := services.NewUserService(userRepo)
 	gameService := services.NewGameService(gameLoginRepo, gameLoginRequestRepo)
+	achievementService := services.NewAchievementService(achievementRepo)
 
 	signupCtrl := controllers.NewSignupController(authService)
 	loginCtrl := controllers.NewLoginController(authService)
-	feedCtrl := controllers.NewFeedController()
+	feedCtrl := controllers.NewFeedController(achievementService)
 	gameCtrl := controllers.NewGameController(gameService, userService)
 	profileCtrl := controllers.NewProfileController(authService)
+	achievementCtrl := controllers.NewAchievementController(achievementService)
 
 	auth := func(next http.HandlerFunc) http.HandlerFunc {
 		return middleware.RequireAuth(authService, next)
@@ -88,10 +91,10 @@ func main() {
 	mux.HandleFunc("GET /api/game/login", gameCtrl.GetGameLoginState)
 	mux.HandleFunc("GET /api/game/exchange", gameCtrl.ExchangeGameLoginCode)
 	mux.HandleFunc("GET /api/game/user", gameLogin(gameCtrl.GetUser))
+	mux.HandleFunc("POST /api/game/achievement", gameLogin(achievementCtrl.AddAchievement))
 	mux.HandleFunc("GET /game", optAuth(gameCtrl.GetGameLoginPage))
 	mux.HandleFunc("POST /game", auth(gameCtrl.PostGameLogin))
 	mux.HandleFunc("GET /profile/logout", auth(profileCtrl.Logout))
-
 	addr := getEnv("LISTEN_ADDR", "localhost:8080")
 	log.Printf("server starting on %s", addr)
 	log.Fatal(http.ListenAndServe(addr, mux))

@@ -92,6 +92,21 @@ class GameAPI:
         r.raise_for_status()
         return GameUser(**r.json())
 
+    def add_achievement(self, name: str):
+        params = {"name": name}
+        r = requests.post(
+            f"{BASE_URL}/api/game/achievement",
+            params=params,
+            headers={
+                "X-Game-Login-ID": self.id,
+                "X-Game-Login-Token": self.token,
+            },
+        )
+        if r.status_code == 409:
+            return False
+        r.raise_for_status()
+        return True
+
 
 # ---------- UI HELPERS ----------
 
@@ -140,3 +155,10 @@ if __name__ == "__main__":
     user = api.get_user()
 
     show_user(user)
+    console.print("\n🎉 Добавляем достижение 'First Login'...")
+
+    success = api.add_achievement("first_login")
+    if success:
+        console.print("✅ Достижение добавлено", style="bold green")
+    else:
+        console.print("⚠️ Достижение уже было добавлено", style="yellow")

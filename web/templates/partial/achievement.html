@@ -1,0 +1,7 @@
+{{define "achievement"}}
+<div>
+    <h3>{{.Name}}</h3>
+    <img src="{{.ImageURL}}" alt="{{.Name}}" style="width: 100px; height: 100px;">
+    <p>Unlocked at {{.CreatedAt.Format "2006-01-02 15:04:05"}}</p>
+</div>
+{{end}}
