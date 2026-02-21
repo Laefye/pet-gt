@@ -18,6 +18,7 @@ func NewAuthService(userRepo *repository.UserRepository, sessionRepo *repository
 
 type SignupRequest struct {
 	Username string
+	Email    string
 	Password string
 }
 
@@ -41,7 +42,11 @@ func (s *AuthService) Signup(ctx context.Context, req SignupRequest) (*repositor
 	if err != nil {
 		return nil, err
 	}
-	return s.userRepo.Create(ctx, req.Username, string(hashed))
+	return s.userRepo.Create(ctx, &repository.CreateUserRequest{
+		Username: req.Username,
+		Email:    req.Email,
+		Password: hashed,
+	})
 }
 
 type LoginRequest struct {

@@ -33,12 +33,14 @@ func (c *SignupController) PostSignup(w http.ResponseWriter, r *http.Request) {
 	}
 	username := r.FormValue("username")
 	password := r.FormValue("password")
-	if username == "" || password == "" {
-		c.renderTemplate(w, &templates.SignupData{Error: "Username and password are required"})
+	email := r.FormValue("email")
+	if username == "" || password == "" || email == "" {
+		c.renderTemplate(w, &templates.SignupData{Error: "Username, email, and password are required"})
 		return
 	}
 	_, err := c.authService.Signup(r.Context(), services.SignupRequest{
 		Username: username,
+		Email:    email,
 		Password: password,
 	})
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 type User struct {
 	ID       string `gorm:"primaryKey"`
 	Username string `gorm:"unique;not null"`
+	Email    string `gorm:"not null"`
 	Password string `gorm:"not null"`
 }
 
@@ -22,11 +23,18 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-func (r *UserRepository) Create(ctx context.Context, username, password string) (*User, error) {
+type CreateUserRequest struct {
+	Username string
+	Email    string
+	Password string
+}
+
+func (r *UserRepository) Create(ctx context.Context, req *CreateUserRequest) (*User, error) {
 	user := &User{
 		ID:       ulid.Make().String(),
-		Username: username,
-		Password: password,
+		Username: req.Username,
+		Email:    req.Email,
+		Password: req.Password,
 	}
 	if err := r.db.WithContext(ctx).Create(user).Error; err != nil {
 		return nil, err
