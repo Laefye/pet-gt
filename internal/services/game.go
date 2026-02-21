@@ -12,11 +12,12 @@ import (
 )
 
 type GameService struct {
-	gameLoginRepo *repository.GameLoginRequestRepository
+	gameLoginRepo        *repository.GameLoginRepository
+	gameLoginRequestRepo *repository.GameLoginRequestRepository
 }
 
-func NewGameService(gameLoginRepo *repository.GameLoginRequestRepository) *GameService {
-	return &GameService{gameLoginRepo: gameLoginRepo}
+func NewGameService(gameLoginRepo *repository.GameLoginRepository, gameLoginRequestRepo *repository.GameLoginRequestRepository) *GameService {
+	return &GameService{gameLoginRepo: gameLoginRepo, gameLoginRequestRepo: gameLoginRequestRepo}
 }
 
 var (
@@ -45,7 +46,7 @@ func (s *GameService) CreateGameLoginRequest(ctx context.Context) (*CreatedGameL
 	if err != nil {
 		return nil, err
 	}
-	gameLoginRequest, err := s.gameLoginRepo.Create(ctx, &repository.CreateGameLoginRequestRequest{
+	gameLoginRequest, err := s.gameLoginRequestRepo.Create(ctx, &repository.CreateGameLoginRequestRequest{
 		Token: string(hashedToken),
 	})
 	if err != nil {
@@ -58,7 +59,7 @@ func (s *GameService) CreateGameLoginRequest(ctx context.Context) (*CreatedGameL
 }
 
 func verifyGameLoginRequest(req *repository.GameLoginRequest) error {
-	if req.UserID != nil {
+	if req.GameLogin != nil {
 		return ErrGameLoginRequestUsed
 	}
 	if req.ExpiresAt.Before(time.Now()) {
@@ -68,7 +69,7 @@ func verifyGameLoginRequest(req *repository.GameLoginRequest) error {
 }
 
 func (s *GameService) GetGameLoginRequest(ctx context.Context, id string) (*repository.GameLoginRequest, error) {
-	req, err := s.gameLoginRepo.GetByID(ctx, id)
+	req, err := s.gameLoginRequestRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +83,7 @@ func (s *GameService) GetGameLoginRequest(ctx context.Context, id string) (*repo
 }
 
 func (s *GameService) GetGameLoginRequestState(ctx context.Context, id string, token string) (*repository.GameLoginRequest, error) {
-	req, err := s.gameLoginRepo.GetByID(ctx, id)
+	req, err := s.gameLoginRequestRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +97,7 @@ func (s *GameService) GetGameLoginRequestState(ctx context.Context, id string, t
 }
 
 func (s *GameService) Login(ctx context.Context, gameLoginRequestID string, user *repository.User) error {
-	req, err := s.gameLoginRepo.GetByID(ctx, gameLoginRequestID)
+	req, err := s.gameLoginRequestRepo.GetByID(ctx, gameLoginRequestID)
 	if err != nil {
 		return err
 	}
@@ -106,6 +107,10 @@ func (s *GameService) Login(ctx context.Context, gameLoginRequestID string, user
 	if err := verifyGameLoginRequest(req); err != nil {
 		return err
 	}
-	req.UserID = &user.ID
-	return s.gameLoginRepo.Update(ctx, req)
+	gameLogin, err := s.gameLoginRepo.Create(ctx, &repository.CreateGameLoginRequest{
+		UserID: user.ID,
+		Token:  createToken(),
+	})
+	req.GameLogin = gameLogin
+	return s.gameLoginRequestRepo.Update(ctx, req)
 }

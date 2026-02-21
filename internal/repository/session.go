@@ -50,3 +50,7 @@ func (r *SessionRepository) GetByID(ctx context.Context, id string) (*Session, e
 	}
 	return &session, nil
 }
+
+func (r *SessionRepository) Delete(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&Session{}).Error
+}

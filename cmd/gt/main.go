@@ -38,21 +38,23 @@ func main() {
 		log.Fatal("failed to connect to database: ", err)
 	}
 
-	if err := db.AutoMigrate(&repository.User{}, &repository.Session{}, &repository.GameLoginRequest{}); err != nil {
+	if err := db.AutoMigrate(&repository.User{}, &repository.Session{}, &repository.GameLogin{}, &repository.GameLoginRequest{}); err != nil {
 		log.Fatal("failed to migrate database: ", err)
 	}
 
 	userRepo := repository.NewUserRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
-	gameLoginRepo := repository.NewGameLoginRequestRepository(db)
+	gameLoginRepo := repository.NewGameLoginRepository(db)
+	gameLoginRequestRepo := repository.NewGameLoginRequestRepository(db)
 
 	authService := services.NewAuthService(userRepo, sessionRepo)
-	gameAPIService := services.NewGameService(gameLoginRepo)
+	gameService := services.NewGameService(gameLoginRepo, gameLoginRequestRepo)
 
 	signupCtrl := controllers.NewSignupController(authService)
 	loginCtrl := controllers.NewLoginController(authService)
 	feedCtrl := controllers.NewFeedController()
-	gameCtrl := controllers.NewGameController(gameAPIService)
+	gameCtrl := controllers.NewGameController(gameService)
+	profileCtrl := controllers.NewProfileController(authService)
 
 	auth := func(next http.HandlerFunc) http.HandlerFunc {
 		return middleware.RequireAuth(authService, next)
@@ -82,6 +84,7 @@ func main() {
 	mux.HandleFunc("GET /api/game", gameCtrl.GetGameLoginState)
 	mux.HandleFunc("GET /game", optAuth(gameCtrl.GetGameLoginPage))
 	mux.HandleFunc("POST /game", auth(gameCtrl.PostGameLogin))
+	mux.HandleFunc("GET /profile/logout", auth(profileCtrl.Logout))
 
 	addr := getEnv("LISTEN_ADDR", "localhost:8080")
 	log.Printf("server starting on %s", addr)

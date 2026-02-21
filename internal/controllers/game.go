@@ -42,13 +42,19 @@ type gameErrorResponse struct {
 }
 
 type gameLoginStateResponse struct {
-	ID   string              `json:"id"`
-	User *gameLoginStateUser `json:"user"`
+	ID              string            `json:"id"`
+	GameSessionUser *gameLoginSession `json:"session"`
 }
 
-type gameLoginStateUser struct {
+type gameLoginUser struct {
 	ID       string `json:"id"`
 	Username string `json:"username"`
+}
+
+type gameLoginSession struct {
+	ID    string        `json:"id"`
+	Token string        `json:"token"`
+	User  gameLoginUser `json:"user"`
 }
 
 func (c *GameController) CreateGameLoginRequest(w http.ResponseWriter, r *http.Request) {
@@ -128,10 +134,14 @@ func (c *GameController) GetGameLoginState(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	response := gameLoginStateResponse{ID: req.ID}
-	if req.UserID != nil {
-		response.User = &gameLoginStateUser{
-			ID:       req.User.ID,
-			Username: req.User.Username,
+	if req.GameLogin != nil {
+		response.GameSessionUser = &gameLoginSession{
+			ID:    req.GameLogin.ID,
+			Token: req.GameLogin.Token,
+			User: gameLoginUser{
+				ID:       req.GameLogin.User.ID,
+				Username: req.GameLogin.User.Username,
+			},
 		}
 	}
 	c.jsonResponse(w, response, http.StatusOK)

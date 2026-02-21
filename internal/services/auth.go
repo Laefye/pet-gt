@@ -70,3 +70,7 @@ func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*repository.
 func (s *AuthService) Authenticate(ctx context.Context, sessionID string) (*repository.Session, error) {
 	return s.sessionRepo.GetByID(ctx, sessionID)
 }
+
+func (s *AuthService) Logout(ctx context.Context, sessionID string) error {
+	return s.sessionRepo.Delete(ctx, sessionID)
+}
