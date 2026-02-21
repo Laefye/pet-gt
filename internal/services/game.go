@@ -85,7 +85,7 @@ func (s *GameService) GetGameLoginRequestState(ctx context.Context, id string, t
 	if err != nil {
 		return nil, err
 	}
-	if req == nil || req.ExpiresAt.Before(time.Now()) || req.GameLoginCode != nil {
+	if req == nil || req.ExpiresAt.Before(time.Now()) || (req.GameLoginCode != nil && req.GameLoginCode.GameLogin != nil) {
 		return nil, ErrGameLoginRequestNotFound
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(req.Token), []byte(token)); err != nil {

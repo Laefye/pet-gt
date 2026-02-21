@@ -42,7 +42,7 @@ type gameErrorResponse struct {
 	Message string `json:"message"`
 }
 
-type gameLoginStateResponse struct {
+type gameLoginState struct {
 	ID   string         `json:"id"`
 	Code *gameLoginCode `json:"code"`
 }
@@ -57,7 +57,8 @@ type gameLoginCode struct {
 	User gameLoginUser `json:"user"`
 }
 
-type gameExchangeResponse struct {
+type gameLogin struct {
+	ID    string        `json:"id"`
 	Token string        `json:"token"`
 	User  gameLoginUser `json:"user"`
 }
@@ -138,7 +139,7 @@ func (c *GameController) GetGameLoginState(w http.ResponseWriter, r *http.Reques
 		}
 		return
 	}
-	response := gameLoginStateResponse{ID: req.ID}
+	response := gameLoginState{ID: req.ID}
 	if req.GameLoginCode != nil {
 		response.Code = &gameLoginCode{
 			ID: req.GameLoginCode.ID,
@@ -172,7 +173,8 @@ func (c *GameController) ExchangeGameLoginCode(w http.ResponseWriter, r *http.Re
 		c.jsonResponse(w, gameErrorResponse{Message: err.Error()}, http.StatusInternalServerError)
 		return
 	}
-	c.jsonResponse(w, gameExchangeResponse{
+	c.jsonResponse(w, gameLogin{
+		ID:    code.GameLogin.ID,
 		Token: code.Token,
 		User: gameLoginUser{
 			ID:       user.ID,

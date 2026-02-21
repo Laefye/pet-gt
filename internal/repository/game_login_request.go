@@ -43,7 +43,7 @@ func (r *GameLoginRequestRepository) Create(ctx context.Context, req *CreateGame
 
 func (r *GameLoginRequestRepository) GetByID(ctx context.Context, id string) (*GameLoginRequest, error) {
 	var req GameLoginRequest
-	err := r.db.WithContext(ctx).Preload("GameLoginCode").Preload("GameLoginCode.User").Where("id = ?", id).First(&req).Error
+	err := r.db.WithContext(ctx).Preload("GameLoginCode").Preload("GameLoginCode.User").Preload("GameLoginCode.GameLogin").Where("id = ?", id).First(&req).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
