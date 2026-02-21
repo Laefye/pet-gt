@@ -9,10 +9,9 @@ import (
 )
 
 type User struct {
-	ID       string    `gorm:"primaryKey"`
-	Username string    `gorm:"unique;not null"`
-	Password string    `gorm:"not null"`
-	Sessions []Session `gorm:"foreignKey:UserID"`
+	ID       string `gorm:"primaryKey"`
+	Username string `gorm:"unique;not null"`
+	Password string `gorm:"not null"`
 }
 
 type UserRepository struct {

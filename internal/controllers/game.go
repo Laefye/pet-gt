@@ -32,6 +32,13 @@ func (c *GameController) renderTemplate(w http.ResponseWriter, data *templates.G
 	}
 }
 
+func (c *GameController) renderGameOKTemplate(w http.ResponseWriter, data *templates.GameData) {
+	err := templates.GameOKTemplate.Execute(w, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 type gameLoginRequestResponse struct {
 	ID    string `json:"id"`
 	URL   string `json:"url,omitempty"`
@@ -43,24 +50,19 @@ type gameErrorResponse struct {
 }
 
 type gameLoginState struct {
-	ID   string         `json:"id"`
-	Code *gameLoginCode `json:"code"`
+	ID     string  `json:"id"`
+	UserID *string `json:"user_id"`
 }
 
-type gameLoginUser struct {
+type gameUser struct {
 	ID       string `json:"id"`
 	Username string `json:"username"`
 }
 
-type gameLoginCode struct {
-	ID   string        `json:"id"`
-	User gameLoginUser `json:"user"`
-}
-
 type gameLogin struct {
-	ID    string        `json:"id"`
-	Token string        `json:"token"`
-	User  gameLoginUser `json:"user"`
+	ID    string   `json:"id"`
+	Token string   `json:"token"`
+	User  gameUser `json:"user"`
 }
 
 func (c *GameController) CreateGameLoginRequest(w http.ResponseWriter, r *http.Request) {
@@ -117,10 +119,10 @@ func (c *GameController) PostGameLogin(w http.ResponseWriter, r *http.Request) {
 	user := middleware.UserFromContext(r.Context())
 	err := c.gameService.Login(r.Context(), requestID, user)
 	if err != nil {
-		c.jsonResponse(w, gameErrorResponse{Message: err.Error()}, http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
+	c.renderGameOKTemplate(w, &templates.GameData{User: user})
 }
 
 func (c *GameController) GetGameLoginState(w http.ResponseWriter, r *http.Request) {
@@ -139,36 +141,27 @@ func (c *GameController) GetGameLoginState(w http.ResponseWriter, r *http.Reques
 		}
 		return
 	}
-	response := gameLoginState{ID: req.ID}
-	if req.GameLoginCode != nil {
-		response.Code = &gameLoginCode{
-			ID: req.GameLoginCode.ID,
-			User: gameLoginUser{
-				ID:       req.GameLoginCode.User.ID,
-				Username: req.GameLoginCode.User.Username,
-			},
-		}
-	}
+	response := gameLoginState{ID: req.ID, UserID: req.UserID}
 	c.jsonResponse(w, response, http.StatusOK)
 }
 
 func (c *GameController) ExchangeGameLoginCode(w http.ResponseWriter, r *http.Request) {
-	codeId := r.URL.Query().Get("code_id")
-	userId := r.URL.Query().Get("user_id")
-	if codeId == "" || userId == "" {
-		c.jsonResponse(w, gameErrorResponse{Message: "Missing code ID or user ID"}, http.StatusBadRequest)
+	id := r.URL.Query().Get("id")
+	token := r.URL.Query().Get("token")
+	if id == "" || token == "" {
+		c.jsonResponse(w, gameErrorResponse{Message: "Missing ID or token"}, http.StatusBadRequest)
 		return
 	}
-	code, err := c.gameService.Exchange(r.Context(), codeId, userId)
+	code, err := c.gameService.Exchange(r.Context(), id, token)
 	if err != nil {
-		if errors.Is(err, services.ErrGameLoginCodeNotFound) {
-			c.jsonResponse(w, gameErrorResponse{Message: "Game login code not found"}, http.StatusNotFound)
+		if errors.Is(err, services.ErrGameLoginRequestNotFound) {
+			c.jsonResponse(w, gameErrorResponse{Message: "Game login request not found"}, http.StatusNotFound)
 		} else {
 			c.jsonResponse(w, gameErrorResponse{Message: err.Error()}, http.StatusInternalServerError)
 		}
 		return
 	}
-	user, err := c.userService.GetUserByID(r.Context(), userId)
+	user, err := c.userService.GetUserByID(r.Context(), code.GameLogin.UserID)
 	if err != nil {
 		c.jsonResponse(w, gameErrorResponse{Message: err.Error()}, http.StatusInternalServerError)
 		return
@@ -176,7 +169,7 @@ func (c *GameController) ExchangeGameLoginCode(w http.ResponseWriter, r *http.Re
 	c.jsonResponse(w, gameLogin{
 		ID:    code.GameLogin.ID,
 		Token: code.Token,
-		User: gameLoginUser{
+		User: gameUser{
 			ID:       user.ID,
 			Username: user.Username,
 		},

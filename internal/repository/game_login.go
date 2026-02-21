@@ -11,7 +11,7 @@ type GameLogin struct {
 	ID     string `gorm:"primaryKey"`
 	UserID string `gorm:"index,not null"`
 	Token  string `gorm:"not null"`
-	User   *User  `gorm:"foreignKey:UserID"`
+	User   *User  `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 }
 
 type GameLoginRepository struct {

@@ -4,8 +4,7 @@ import (
 	"context"
 	"errors"
 	"gt/internal/repository"
-
-	"golang.org/x/crypto/bcrypt"
+	"gt/internal/security"
 )
 
 type AuthService struct {
@@ -38,7 +37,7 @@ func (s *AuthService) Signup(ctx context.Context, req SignupRequest) (*repositor
 	if existing != nil {
 		return nil, &SignupError{Message: "Username already exists"}
 	}
-	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	hashed, err := security.HashPassword(req.Password)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +60,7 @@ func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*repository.
 	if user == nil {
 		return nil, ErrInvalidCredentials
 	}
-	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)) != nil {
+	if !security.CheckPasswordHash(req.Password, user.Password) {
 		return nil, ErrInvalidCredentials
 	}
 	return s.sessionRepo.Create(ctx, user.ID, req.UserAgent)

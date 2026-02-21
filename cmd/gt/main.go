@@ -38,19 +38,18 @@ func main() {
 		log.Fatal("failed to connect to database: ", err)
 	}
 
-	if err := db.AutoMigrate(&repository.User{}, &repository.Session{}, &repository.GameLogin{}, &repository.GameLoginCode{}, &repository.GameLoginRequest{}); err != nil {
+	if err := db.AutoMigrate(&repository.User{}, &repository.Session{}, &repository.GameLogin{}, &repository.GameLoginRequest{}); err != nil {
 		log.Fatal("failed to migrate database: ", err)
 	}
 
 	userRepo := repository.NewUserRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
 	gameLoginRepo := repository.NewGameLoginRepository(db)
-	gameLoginCodeRepo := repository.NewGameLoginCodeRepository(db)
 	gameLoginRequestRepo := repository.NewGameLoginRequestRepository(db)
 
 	authService := services.NewAuthService(userRepo, sessionRepo)
 	userService := services.NewUserService(userRepo)
-	gameService := services.NewGameService(gameLoginRepo, gameLoginCodeRepo, gameLoginRequestRepo)
+	gameService := services.NewGameService(gameLoginRepo, gameLoginRequestRepo)
 
 	signupCtrl := controllers.NewSignupController(authService)
 	loginCtrl := controllers.NewLoginController(authService)

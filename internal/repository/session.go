@@ -15,7 +15,7 @@ type Session struct {
 	UserAgent string    `gorm:"not null"`
 	CreatedAt time.Time `gorm:"not null"`
 
-	User *User `gorm:"foreignKey:UserID"`
+	User *User `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 }
 
 type SessionRepository struct {

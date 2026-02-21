@@ -2,23 +2,19 @@ package services
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"gt/internal/repository"
+	"gt/internal/security"
 	"time"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
 type GameService struct {
 	gameLoginRepo        *repository.GameLoginRepository
-	gameLoginCodeRepo    *repository.GameLoginCodeRepository
 	gameLoginRequestRepo *repository.GameLoginRequestRepository
 }
 
-func NewGameService(gameLoginRepo *repository.GameLoginRepository, gameLoginCodeRepo *repository.GameLoginCodeRepository, gameLoginRequestRepo *repository.GameLoginRequestRepository) *GameService {
-	return &GameService{gameLoginRepo: gameLoginRepo, gameLoginCodeRepo: gameLoginCodeRepo, gameLoginRequestRepo: gameLoginRequestRepo}
+func NewGameService(gameLoginRepo *repository.GameLoginRepository, gameLoginRequestRepo *repository.GameLoginRequestRepository) *GameService {
+	return &GameService{gameLoginRepo: gameLoginRepo, gameLoginRequestRepo: gameLoginRequestRepo}
 }
 
 var (
@@ -27,23 +23,14 @@ var (
 	ErrGameLoginCodeNotFound    = errors.New("game login code not found")
 )
 
-func createToken() string {
-	b := make([]byte, 16)
-	_, err := rand.Read(b)
-	if err != nil {
-		panic("failed to generate token: " + err.Error())
-	}
-	return hex.EncodeToString(b)
-}
-
 type CreatedGameLoginRequest struct {
 	GameLoginRequest *repository.GameLoginRequest
 	Token            string
 }
 
 func (s *GameService) CreateGameLoginRequest(ctx context.Context) (*CreatedGameLoginRequest, error) {
-	token := createToken()
-	hashedToken, err := bcrypt.GenerateFromPassword([]byte(token), bcrypt.DefaultCost)
+	token := security.GenerateToken()
+	hashedToken, err := security.HashPassword(token)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +47,7 @@ func (s *GameService) CreateGameLoginRequest(ctx context.Context) (*CreatedGameL
 }
 
 func verifyGameLoginRequest(req *repository.GameLoginRequest) error {
-	if req.GameLoginCode != nil || req.ExpiresAt.Before(time.Now()) {
+	if req.User != nil || req.ExpiresAt.Before(time.Now()) {
 		return ErrGameLoginRequestUsed
 	}
 	return nil
@@ -85,10 +72,10 @@ func (s *GameService) GetGameLoginRequestState(ctx context.Context, id string, t
 	if err != nil {
 		return nil, err
 	}
-	if req == nil || req.ExpiresAt.Before(time.Now()) || (req.GameLoginCode != nil && req.GameLoginCode.GameLogin != nil) {
+	if req == nil || req.ExpiresAt.Before(time.Now()) || req.GameLogin != nil {
 		return nil, ErrGameLoginRequestNotFound
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(req.Token), []byte(token)); err != nil {
+	if !security.CheckPasswordHash(token, req.Token) {
 		return nil, ErrGameLoginRequestNotFound
 	}
 	return req, nil
@@ -105,10 +92,7 @@ func (s *GameService) Login(ctx context.Context, gameLoginRequestID string, user
 	if err := verifyGameLoginRequest(req); err != nil {
 		return err
 	}
-	gameLogin, err := s.gameLoginCodeRepo.Create(ctx, &repository.CreateGameLoginCodeRequest{
-		UserID: user.ID,
-	})
-	req.GameLoginCode = gameLogin
+	req.UserID = &user.ID
 	return s.gameLoginRequestRepo.Update(ctx, req)
 }
 
@@ -117,32 +101,39 @@ type GameLoginExchanged struct {
 	Token     string
 }
 
-func (s *GameService) Exchange(ctx context.Context, gameLoginCodeID string, userID string) (*GameLoginExchanged, error) {
-	code, err := s.gameLoginCodeRepo.GetByIDAndUserID(ctx, gameLoginCodeID, userID)
+func (s *GameService) Exchange(ctx context.Context, gameRequestId string, token string) (*GameLoginExchanged, error) {
+	req, err := s.gameLoginRequestRepo.GetByID(ctx, gameRequestId)
 	if err != nil {
 		return nil, err
 	}
-	if code == nil || code.ExpiresAt.Before(time.Now()) || code.GameLoginID != nil {
-		return nil, ErrGameLoginCodeNotFound
+	if req == nil || req.ExpiresAt.Before(time.Now()) || req.GameLogin != nil {
+		return nil, ErrGameLoginRequestNotFound
 	}
-	token := createToken()
-	hashedToken, err := bcrypt.GenerateFromPassword([]byte(token), bcrypt.DefaultCost)
+	if !security.CheckPasswordHash(token, req.Token) {
+		return nil, ErrGameLoginRequestNotFound
+	}
+	userID := req.UserID
+	if userID == nil {
+		return nil, errors.New("game login request has no user ID")
+	}
+	loginToken := security.GenerateToken()
+	hashedToken, err := security.HashPassword(loginToken)
 	if err != nil {
 		return nil, err
 	}
 	gameLogin, err := s.gameLoginRepo.Create(ctx, &repository.CreateGameLoginRequest{
-		UserID: userID,
+		UserID: *userID,
 		Token:  string(hashedToken),
 	})
 	if err != nil {
 		return nil, err
 	}
-	code.GameLoginID = &gameLogin.ID
-	if err := s.gameLoginCodeRepo.Update(ctx, code); err != nil {
+	req.GameLogin = gameLogin
+	if err := s.gameLoginRequestRepo.Update(ctx, req); err != nil {
 		return nil, err
 	}
 	return &GameLoginExchanged{
 		GameLogin: gameLogin,
-		Token:     token,
+		Token:     loginToken,
 	}, nil
 }

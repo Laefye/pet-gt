@@ -1,0 +1,11 @@
+{{ define "title" }}Game Login Page{{ end }}
+{{ define "head" }}
+<link rel="stylesheet" href="/public/css/login.css">
+<link rel="stylesheet" href="/public/css/game.css">
+{{ end }}
+{{ define "content" }}
+<div class="container-sm">
+    <h1>Game Login</h1>
+    <h3>You're logged in as <span class="tag-username">{{ .User.Username }}</span></h3>
+</div>
+{{ end }}

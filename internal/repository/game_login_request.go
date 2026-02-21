@@ -10,11 +10,13 @@ import (
 )
 
 type GameLoginRequest struct {
-	ID              string         `gorm:"primaryKey"`
-	Token           string         `gorm:"uniqueIndex"`
-	GameLoginCodeID *string        `gorm:"index"`
-	ExpiresAt       time.Time      `gorm:"not null"`
-	GameLoginCode   *GameLoginCode `gorm:"foreignKey:GameLoginCodeID"`
+	ID          string     `gorm:"primaryKey"`
+	Token       string     `gorm:"uniqueIndex"`
+	UserID      *string    `gorm:"index"`
+	GameLoginID *string    `gorm:"index"`
+	ExpiresAt   time.Time  `gorm:"not null"`
+	User        *User      `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
+	GameLogin   *GameLogin `gorm:"foreignKey:GameLoginID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
 }
 
 type GameLoginRequestRepository struct {
@@ -43,7 +45,7 @@ func (r *GameLoginRequestRepository) Create(ctx context.Context, req *CreateGame
 
 func (r *GameLoginRequestRepository) GetByID(ctx context.Context, id string) (*GameLoginRequest, error) {
 	var req GameLoginRequest
-	err := r.db.WithContext(ctx).Preload("GameLoginCode").Preload("GameLoginCode.User").Preload("GameLoginCode.GameLogin").Where("id = ?", id).First(&req).Error
+	err := r.db.WithContext(ctx).Preload("User").Preload("GameLogin").Where("id = ?", id).First(&req).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil

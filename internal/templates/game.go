@@ -11,3 +11,7 @@ type GameData struct {
 var GameLoginTemplate = parseTemplate(
 	"web/templates/page/game/login.html",
 )
+
+var GameOKTemplate = parseTemplate(
+	"web/templates/page/game/ok.html",
+)

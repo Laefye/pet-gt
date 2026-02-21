@@ -8,22 +8,18 @@ class GameLoginResponse(BaseModel):
     url: str
     token: str
 
-class GameLoginUser(BaseModel):
+class GameUser(BaseModel):
     id: str
     username: str
-
-class GameCode(BaseModel):
-    id: str
-    user: GameLoginUser
 
 class GameLogin(BaseModel):
     id: str
     token: str
-    user: GameLoginUser
+    user: GameUser
 
 class GameLoginStateResponse(BaseModel):
     id: str
-    code: GameCode | None
+    user_id: str | None
 
 BASE_URL = "http://localhost:8080"
 
@@ -41,14 +37,14 @@ def wait_for_user_login(id: str, token: str) -> GameLoginStateResponse:
         response = requests.get(f"{BASE_URL}/api/game/login", params=params)
         response.raise_for_status()
         state = GameLoginStateResponse(**response.json())
-        if state.code is not None:
+        if state.user_id is not None:
             return state
         time.sleep(5)
 
-def exchange_code_for_token(code_id: str, user_id: str) -> GameLogin:
+def exchange_code_for_token(id: str, token: str) -> GameLogin:
     params = {
-        "code_id": code_id,
-        "user_id": user_id
+        "id": id,
+        "token": token
     }
     response = requests.get(f"{BASE_URL}/api/game/exchange", params=params)
     response.raise_for_status()
@@ -60,5 +56,5 @@ if __name__ == "__main__":
     print(f"Visit the following URL to log in: {login_response.url}")
     state = wait_for_user_login(login_response.id, login_response.token)
     print(state)
-    game_login = exchange_code_for_token(state.code.id, state.code.user.id)
+    game_login = exchange_code_for_token(state.id, login_response.token)
     print(game_login)
