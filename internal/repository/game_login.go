@@ -9,7 +9,7 @@ import (
 
 type GameLogin struct {
 	ID     string `gorm:"primaryKey"`
-	UserID string `gorm:"index"`
+	UserID string `gorm:"index,not null"`
 	Token  string `gorm:"not null"`
 	User   *User  `gorm:"foreignKey:UserID"`
 }

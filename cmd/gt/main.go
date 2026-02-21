@@ -38,22 +38,24 @@ func main() {
 		log.Fatal("failed to connect to database: ", err)
 	}
 
-	if err := db.AutoMigrate(&repository.User{}, &repository.Session{}, &repository.GameLogin{}, &repository.GameLoginRequest{}); err != nil {
+	if err := db.AutoMigrate(&repository.User{}, &repository.Session{}, &repository.GameLogin{}, &repository.GameLoginCode{}, &repository.GameLoginRequest{}); err != nil {
 		log.Fatal("failed to migrate database: ", err)
 	}
 
 	userRepo := repository.NewUserRepository(db)
 	sessionRepo := repository.NewSessionRepository(db)
 	gameLoginRepo := repository.NewGameLoginRepository(db)
+	gameLoginCodeRepo := repository.NewGameLoginCodeRepository(db)
 	gameLoginRequestRepo := repository.NewGameLoginRequestRepository(db)
 
 	authService := services.NewAuthService(userRepo, sessionRepo)
-	gameService := services.NewGameService(gameLoginRepo, gameLoginRequestRepo)
+	userService := services.NewUserService(userRepo)
+	gameService := services.NewGameService(gameLoginRepo, gameLoginCodeRepo, gameLoginRequestRepo)
 
 	signupCtrl := controllers.NewSignupController(authService)
 	loginCtrl := controllers.NewLoginController(authService)
 	feedCtrl := controllers.NewFeedController()
-	gameCtrl := controllers.NewGameController(gameService)
+	gameCtrl := controllers.NewGameController(gameService, userService)
 	profileCtrl := controllers.NewProfileController(authService)
 
 	auth := func(next http.HandlerFunc) http.HandlerFunc {
@@ -80,8 +82,9 @@ func main() {
 
 	mux.HandleFunc("GET /feed", auth(feedCtrl.GetFeed))
 
-	mux.HandleFunc("POST /api/game", gameCtrl.CreateGameLoginRequest)
-	mux.HandleFunc("GET /api/game", gameCtrl.GetGameLoginState)
+	mux.HandleFunc("POST /api/game/login", gameCtrl.CreateGameLoginRequest)
+	mux.HandleFunc("GET /api/game/login", gameCtrl.GetGameLoginState)
+	mux.HandleFunc("GET /api/game/exchange", gameCtrl.ExchangeGameLoginCode)
 	mux.HandleFunc("GET /game", optAuth(gameCtrl.GetGameLoginPage))
 	mux.HandleFunc("POST /game", auth(gameCtrl.PostGameLogin))
 	mux.HandleFunc("GET /profile/logout", auth(profileCtrl.Logout))
