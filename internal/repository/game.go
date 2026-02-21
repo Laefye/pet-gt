@@ -3,15 +3,18 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/oklog/ulid/v2"
 	"gorm.io/gorm"
 )
 
 type GameLoginRequest struct {
-	ID               string  `gorm:"primaryKey"`
-	AuthorizedUserID *string `gorm:"index;column:authorized_user_id"`
-	AuthorizedUser   *User   `gorm:"foreignKey:AuthorizedUserID;references:ID"`
+	ID        string  `gorm:"primaryKey"`
+	Token     string  `gorm:"uniqueIndex"`
+	UserID    *string `gorm:"index;column:authorized_user_id"`
+	ExpiresAt time.Time
+	User      *User `gorm:"references:ID"`
 }
 
 type GameLoginRequestRepository struct {
@@ -22,19 +25,25 @@ func NewGameLoginRequestRepository(db *gorm.DB) *GameLoginRequestRepository {
 	return &GameLoginRequestRepository{db: db}
 }
 
-func (r *GameLoginRequestRepository) Create(ctx context.Context) (*GameLoginRequest, error) {
-	req := &GameLoginRequest{
-		ID: ulid.Make().String(),
+type CreateGameLoginRequestRequest struct {
+	Token string
+}
+
+func (r *GameLoginRequestRepository) Create(ctx context.Context, req *CreateGameLoginRequestRequest) (*GameLoginRequest, error) {
+	gameLoginRequest := &GameLoginRequest{
+		ID:        ulid.Make().String(),
+		Token:     req.Token,
+		ExpiresAt: time.Now().Add(5 * time.Minute),
 	}
-	if err := r.db.WithContext(ctx).Create(req).Error; err != nil {
+	if err := r.db.WithContext(ctx).Create(gameLoginRequest).Error; err != nil {
 		return nil, err
 	}
-	return req, nil
+	return gameLoginRequest, nil
 }
 
 func (r *GameLoginRequestRepository) GetByID(ctx context.Context, id string) (*GameLoginRequest, error) {
 	var req GameLoginRequest
-	err := r.db.WithContext(ctx).Preload("AuthorizedUser").Where("id = ?", id).First(&req).Error
+	err := r.db.WithContext(ctx).Preload("User").Where("id = ?", id).First(&req).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil

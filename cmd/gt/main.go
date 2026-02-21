@@ -47,7 +47,7 @@ func main() {
 	gameLoginRepo := repository.NewGameLoginRequestRepository(db)
 
 	authService := services.NewAuthService(userRepo, sessionRepo)
-	gameAPIService := services.NewGameAPIService(gameLoginRepo)
+	gameAPIService := services.NewGameService(gameLoginRepo)
 
 	signupCtrl := controllers.NewSignupController(authService)
 	loginCtrl := controllers.NewLoginController(authService)
@@ -60,16 +60,19 @@ func main() {
 	optAuth := func(next http.HandlerFunc) http.HandlerFunc {
 		return middleware.OptionalAuth(authService, next)
 	}
+	noAuth := func(next http.HandlerFunc) http.HandlerFunc {
+		return middleware.NoAuth(authService, "/login", next)
+	}
 
 	mux := http.NewServeMux()
 	mux.Handle("/public/", http.StripPrefix("/public", http.FileServer(http.Dir("web/public"))))
 
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		http.Redirect(w, r, "/feed", http.StatusSeeOther)
 	})
 
-	mux.HandleFunc("GET /signup", signupCtrl.GetSignup)
-	mux.HandleFunc("POST /signup", signupCtrl.PostSignup)
+	mux.HandleFunc("GET /signup", noAuth(signupCtrl.GetSignup))
+	mux.HandleFunc("POST /signup", noAuth(signupCtrl.PostSignup))
 	mux.HandleFunc("GET /login", loginCtrl.GetLogin)
 	mux.HandleFunc("POST /login", loginCtrl.PostLogin)
 
@@ -78,7 +81,7 @@ func main() {
 	mux.HandleFunc("POST /api/game", gameCtrl.CreateGameLoginRequest)
 	mux.HandleFunc("GET /api/game", gameCtrl.GetGameLoginState)
 	mux.HandleFunc("GET /game", optAuth(gameCtrl.GetGameLoginPage))
-	mux.HandleFunc("POST /game", optAuth(gameCtrl.PostGameLogin))
+	mux.HandleFunc("POST /game", auth(gameCtrl.PostGameLogin))
 
 	addr := getEnv("LISTEN_ADDR", "localhost:8080")
 	log.Printf("server starting on %s", addr)

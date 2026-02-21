@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
 	"gt/internal/middleware"
 	"gt/internal/services"
 	"gt/internal/templates"
@@ -10,11 +11,11 @@ import (
 )
 
 type GameController struct {
-	gameAPIService *services.GameAPIService
+	gameService *services.GameService
 }
 
-func NewGameController(gameAPIService *services.GameAPIService) *GameController {
-	return &GameController{gameAPIService: gameAPIService}
+func NewGameController(gameService *services.GameService) *GameController {
+	return &GameController{gameService: gameService}
 }
 
 func (c *GameController) jsonResponse(w http.ResponseWriter, data any, statusCode int) {
@@ -24,15 +25,16 @@ func (c *GameController) jsonResponse(w http.ResponseWriter, data any, statusCod
 }
 
 func (c *GameController) renderTemplate(w http.ResponseWriter, data *templates.GameData) {
-	err := templates.GameTemplate.Execute(w, data)
+	err := templates.GameLoginTemplate.Execute(w, data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
 type gameLoginRequestResponse struct {
-	ID  string `json:"id"`
-	URL string `json:"url,omitempty"`
+	ID    string `json:"id"`
+	URL   string `json:"url,omitempty"`
+	Token string `json:"token,omitempty"`
 }
 
 type gameErrorResponse struct {
@@ -41,7 +43,7 @@ type gameErrorResponse struct {
 
 type gameLoginStateResponse struct {
 	ID   string              `json:"id"`
-	User *gameLoginStateUser `json:"user,omitempty"`
+	User *gameLoginStateUser `json:"user"`
 }
 
 type gameLoginStateUser struct {
@@ -50,7 +52,7 @@ type gameLoginStateUser struct {
 }
 
 func (c *GameController) CreateGameLoginRequest(w http.ResponseWriter, r *http.Request) {
-	req, err := c.gameAPIService.CreateGameLoginRequest(r.Context())
+	req, err := c.gameService.CreateGameLoginRequest(r.Context())
 	if err != nil {
 		c.jsonResponse(w, gameErrorResponse{Message: err.Error()}, http.StatusInternalServerError)
 		return
@@ -61,9 +63,9 @@ func (c *GameController) CreateGameLoginRequest(w http.ResponseWriter, r *http.R
 		Path:   "/game",
 	}
 	query := u.Query()
-	query.Set("id", req.ID)
+	query.Set("id", req.GameLoginRequest.ID)
 	u.RawQuery = query.Encode()
-	c.jsonResponse(w, gameLoginRequestResponse{ID: req.ID, URL: u.String()}, http.StatusCreated)
+	c.jsonResponse(w, gameLoginRequestResponse{ID: req.GameLoginRequest.ID, URL: u.String(), Token: req.Token}, http.StatusCreated)
 }
 
 func (c *GameController) GetGameLoginPage(w http.ResponseWriter, r *http.Request) {
@@ -75,11 +77,14 @@ func (c *GameController) GetGameLoginPage(w http.ResponseWriter, r *http.Request
 	user := middleware.UserFromContext(r.Context())
 	if user == nil {
 		query := url.Values{}
-		query.Set("game_login_request_id", requestID)
+		query.Set("redirect", LoginRedirectData{
+			Action:             LoginActionGameLogin,
+			GameLoginRequestID: requestID,
+		}.ToQuery())
 		http.Redirect(w, r, "/login?"+query.Encode(), http.StatusSeeOther)
 		return
 	}
-	gameLoginRequest, err := c.gameAPIService.GetGameLoginRequestByID(r.Context(), requestID)
+	gameLoginRequest, err := c.gameService.GetGameLoginRequest(r.Context(), requestID)
 	if err != nil {
 		c.renderTemplate(w, &templates.GameData{Error: err.Error()})
 		return
@@ -92,19 +97,13 @@ func (c *GameController) PostGameLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to parse form", http.StatusBadRequest)
 		return
 	}
-	requestID := r.FormValue("game_login_request_id")
+	requestID := r.FormValue("request_id")
 	if requestID == "" {
 		http.Error(w, "Missing game login request ID", http.StatusBadRequest)
 		return
 	}
 	user := middleware.UserFromContext(r.Context())
-	if user == nil {
-		query := url.Values{}
-		query.Set("game_login_request_id", requestID)
-		http.Redirect(w, r, "/login?"+query.Encode(), http.StatusSeeOther)
-		return
-	}
-	err := c.gameAPIService.Login(r.Context(), requestID, user)
+	err := c.gameService.Login(r.Context(), requestID, user)
 	if err != nil {
 		c.jsonResponse(w, gameErrorResponse{Message: err.Error()}, http.StatusBadRequest)
 		return
@@ -114,24 +113,25 @@ func (c *GameController) PostGameLogin(w http.ResponseWriter, r *http.Request) {
 
 func (c *GameController) GetGameLoginState(w http.ResponseWriter, r *http.Request) {
 	requestID := r.URL.Query().Get("id")
-	if requestID == "" {
-		c.jsonResponse(w, gameErrorResponse{Message: "Missing request ID"}, http.StatusBadRequest)
+	token := r.URL.Query().Get("token")
+	if requestID == "" || token == "" {
+		c.jsonResponse(w, gameErrorResponse{Message: "Missing request ID or token"}, http.StatusBadRequest)
 		return
 	}
-	req, err := c.gameAPIService.GetGameLoginRequestState(r.Context(), requestID)
+	req, err := c.gameService.GetGameLoginRequestState(r.Context(), requestID, token)
 	if err != nil {
-		c.jsonResponse(w, gameErrorResponse{Message: err.Error()}, http.StatusInternalServerError)
-		return
-	}
-	if req == nil {
-		c.jsonResponse(w, gameErrorResponse{Message: "Game login request not found"}, http.StatusNotFound)
+		if errors.Is(err, services.ErrGameLoginRequestNotFound) {
+			c.jsonResponse(w, gameErrorResponse{Message: "Game login request not found"}, http.StatusNotFound)
+		} else {
+			c.jsonResponse(w, gameErrorResponse{Message: err.Error()}, http.StatusInternalServerError)
+		}
 		return
 	}
 	response := gameLoginStateResponse{ID: req.ID}
-	if req.AuthorizedUserID != nil {
+	if req.UserID != nil {
 		response.User = &gameLoginStateUser{
-			ID:       req.AuthorizedUser.ID,
-			Username: req.AuthorizedUser.Username,
+			ID:       req.User.ID,
+			Username: req.User.Username,
 		}
 	}
 	c.jsonResponse(w, response, http.StatusOK)

@@ -8,6 +8,6 @@ type GameData struct {
 	Error            string
 }
 
-var GameTemplate = parseTemplate(
-	"web/templates/page/game.html",
+var GameLoginTemplate = parseTemplate(
+	"web/templates/page/game/login.html",
 )

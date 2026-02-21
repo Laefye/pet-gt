@@ -6,8 +6,8 @@
 <div class="container-sm">
     <h1>Login</h1>
     <form action="/login" method="POST" class="login-form">
-        {{ if .GameLoginRequestID }}
-            <input type="hidden" name="game_login_request_id" value="{{ .GameLoginRequestID }}">
+        {{ if .Redirect }}
+            <input type="hidden" name="redirect" value="{{ .Redirect }}">
         {{ end }}
         <div>
             <label for="username">Username:</label>

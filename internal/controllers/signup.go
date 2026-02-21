@@ -23,7 +23,7 @@ func (c *SignupController) renderTemplate(w http.ResponseWriter, data *templates
 }
 
 func (c *SignupController) GetSignup(w http.ResponseWriter, r *http.Request) {
-	c.renderTemplate(w, nil)
+	c.renderTemplate(w, &templates.SignupData{})
 }
 
 func (c *SignupController) PostSignup(w http.ResponseWriter, r *http.Request) {
